@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Simpe file upload page</title>
+    <style>
+      #large {
+        display: block;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(100, 180, 160, 0.8);
+      }
+      #drop_zone {
+        border: 5px solid blue;
+        width:  50%;
+        height: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="large">
+      <form enctype="multipart/form-data" method="POST"action="/upload">
+        <label>Select a file</label>
+        <input name="upfile" type="file" multiple>
+        <input type="submit" value="Send">
+      </form>
+      <div id="drop_zone" ondrop="dropHandler(event);">
+        <p>Drag one or more files to this Drop Zone ...</p>
+      </div>
+    </div>
+    <script>
+      const dropZone = document.getElementById('drop_zone')
+      dropZone.ondrop = function (ev) {
+        ev.preventDefault()
+        if (ev.dataTransfer.items) {
+          for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+            if (ev.dataTransfer.items[i].kind === 'file') {
+              var file = ev.dataTransfer.items[i].getAsFile()
+              console.log(`... file[${i}].name = '${file.name}`);
+            }
+          }
+        } else {
+          for (var i = 0; i < ev.dataTransfer.files.length; i++) {
+            console.log('... file[' + i + '].name = ' + ev.dataTransfer.files[i].name);
+          }
+        }
+      }
+      dropZone.ondragover = function (ev) {
+        console.log('File(s) in drop zone')
+        ev.preventDefault()
+      }
+    </script>
+  </body>
+</html>
