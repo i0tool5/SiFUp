@@ -1,4 +1,5 @@
 *.exe
+cmd/simpleuploader/simpleuploader
 
-tlscert/
+**/tlscert/**/*.pem
 uploaded/
