@@ -3,52 +3,164 @@
   <head>
     <title>Simpe file upload page</title>
     <style>
-      #large {
-        display: block;
-        position: fixed;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(100, 180, 160, 0.8);
-      }
-      #drop_zone {
-        border: 5px solid blue;
-        width:  50%;
-        height: 50%;
-      }
+		body {
+			background-color: rgba(87, 87, 87, 0.8);
+			color: rgb(250, 250, 250);
+			font-size: 21px;
+		}
+
+		.container {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			text-align: center;
+			gap: 1rem;
+		}
+
+		.container > form {
+			display: flex;
+			flex-direction: column;
+			min-height: 10rem;
+			height: auto;
+		}
+
+		form > input {
+			font-size: 17px;
+		}
+
+		.container__drop {
+			display: flex;
+			position: relative;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			gap: 1rem;
+
+			min-height: 20rem;
+			width: 80%;
+			border-radius: .5rem;
+			box-shadow: 0px 0px 20px rgb(200, 200, 200);
+		}
+
+		.container__drop > button {
+			position: absolute;
+			width: 90%;
+			bottom: 10px;
+			min-height: 2rem;
+		}
+
+		.drop-zone {
+			display: block;
+			position: absolute;
+			width: 100%;
+        	height: 100%;
+			border: 1px solid whitesmoke;
+			border-radius: .5rem;
+      	}
+
+		#count {
+			font-size: 14px;
+		}
     </style>
   </head>
+
   <body>
-    <div id="large">
-      <form enctype="multipart/form-data" method="POST"action="/upload">
-        <label>Select a file</label>
-        <input name="upfile" type="file" multiple>
-        <input type="submit" value="Send">
-      </form>
-      <div id="drop_zone" ondrop="dropHandler(event);">
-        <p>Drag one or more files to this Drop Zone ...</p>
-      </div>
-    </div>
+    <div class="container">
+		<noscript>
+			<form enctype="multipart/form-data" method="POST" action="/upload">
+				<h3>Select a file</h3>
+				<input name="file" type="file" multiple>
+				<input type="submit" value="Send">
+			</form>
+		</noscript>
+		<div class="container__drop">
+			<div id="drop-zone" class="drop-zone">
+				<p id="text">Drag one or more files to this drop zone</p>
+				<p id="count"></p>
+			</div>
+			<button data-s3ndf0rm class="send">Send</button>
+		</div>
+	</div>
+
     <script>
-      const dropZone = document.getElementById('drop_zone')
-      dropZone.ondrop = function (ev) {
-        ev.preventDefault()
-        if (ev.dataTransfer.items) {
-          for (var i = 0; i < ev.dataTransfer.items.length; i++) {
-            if (ev.dataTransfer.items[i].kind === 'file') {
-              var file = ev.dataTransfer.items[i].getAsFile()
-              console.log(`... file[${i}].name = '${file.name}`);
-            }
-          }
-        } else {
-          for (var i = 0; i < ev.dataTransfer.files.length; i++) {
-            console.log('... file[' + i + '].name = ' + ev.dataTransfer.files[i].name);
-          }
-        }
-      }
-      dropZone.ondragover = function (ev) {
-        console.log('File(s) in drop zone')
-        ev.preventDefault()
-      }
+		const dragTitle = "Drag and drop one or more files here";
+		const dropTitle = "Drop file";
+		const noFiles = "Nothing to do without files";
+		const filesSent = "Files sent successfuly"
+		const responseError = "Error occured sending files!";
+
+		let filesArr = new Array();
+		let formData = new FormData();
+
+		const dropZone = document.getElementById('drop-zone');
+		const dropText = document.getElementById('text');
+		const filesCount = document.getElementById('count');
+		const dropSend = document.querySelector('button[data-s3ndf0rm=""]');
+
+		window.addEventListener('load', () => {
+			dropText.innerText = dragTitle;
+		})
+
+		dropZone.addEventListener('drop',(ev) => {
+			ev.preventDefault()
+			if (ev.dataTransfer.items) {
+				for (var i = 0; i < ev.dataTransfer.items.length; i++) {
+					if (ev.dataTransfer.items[i].kind === 'file') {
+						var file = ev.dataTransfer.items[i].getAsFile();
+						filesArr.push(file);
+					}
+				}
+			} else {
+				for (var i = 0; i < ev.dataTransfer.files.length; i++) {
+					filesArr.push(ev.dataTransfet.files[i]);
+				}
+			}
+			dropText.innerText = dragTitle;
+			const cnt = filesArr.length > 1 ? `${filesArr.length} files` : `${filesArr.length} file`;
+
+			filesCount.innerText = `Currently: ${cnt}`
+		});
+
+		dropZone.addEventListener('dragover', (ev) => {
+        	ev.preventDefault();
+			const fl = ev.dataTransfer.items.length || ev.dataTransfer.files.length;
+			dropText.innerText = fl > 1 ? dropTitle+"s" : dropTitle;
+     	 });
+
+		dropSend.addEventListener('click', async () => {
+			if (filesArr.length < 1) {
+				dropText.innerText = noFiles;
+				setTimeout(() => {
+					dropText.innerText = dragTitle;
+				}, 4000);
+				return;
+			}
+
+			for (file of filesArr) {
+				formData.append("file", file);
+			}
+
+			const resp = await fetch("/upload", {
+				method: "POST",
+				body: formData
+			});
+
+			if (resp.status != 200) {
+				dropText.innerText = responseError;
+			} else {
+				dropText.innerText = filesSent;
+			}
+
+			filesArr = new Array();
+			formData.delete('file');
+
+			filesCount.innerText = "";
+
+			setTimeout(() => {
+				dropText.innerText = dragTitle;
+			}, 4000);
+		});
     </script>
   </body>
 </html>

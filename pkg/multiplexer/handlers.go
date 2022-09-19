@@ -2,7 +2,7 @@ package multiplexer
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -56,20 +56,21 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	files := r.MultipartForm.File
-	if len(files["upfile"]) == 0 {
+	if len(files["file"]) == 0 {
 		log.Println("[!] No files to save.")
+		w.WriteHeader(http.StatusBadRequest)
 		helpers.WrapHttp(w)
 		return
 	}
 
-	for _, file := range files["upfile"] {
+	for _, file := range files["file"] {
 		cf, err := file.Open()
 		if err != nil {
 			helpers.WrapBoth(w, err)
 			return
 		}
 		defer cf.Close()
-		fileContent, _ := ioutil.ReadAll(cf)
+		fileContent, _ := io.ReadAll(cf)
 		err = helpers.CreateFile(h.saveToDir, file.Filename, fileContent)
 		if err != nil {
 			log.Printf("[!] Error occured creating file %s\n", err)
