@@ -1,4 +1,4 @@
-# simpleuploader
+# SiFUp - Simple File Uploader
 This small program is designed to make it easier to upload files to the system, for example during penetration testing. 
 
 To be portable, it's a single file with embedded HTML templates and TLS certificates
