@@ -35,11 +35,11 @@ func (h *Handlers) PrepareTemplates() (err error) {
 	}
 	h.templates["form"] = string(template)
 
-	template, err = templates.Temlpates.ReadFile("html/success.html")
+	template, err = templates.Fonts.ReadFile("fonts/Genos.ttf")
 	if err != nil {
 		return
 	}
-	h.templates["success"] = string(template)
+	h.templates["genos"] = string(template)
 
 	return
 }
@@ -78,4 +78,9 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, h.templates["success"])
+}
+
+func (h *Handlers) HandleFonts(w http.ResponseWriter, r *http.Request) {
+	font := h.templates["genos"]
+	fmt.Fprint(w, font)
 }

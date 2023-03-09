@@ -43,6 +43,7 @@ func run() {
 
 	mplex.HandleFunc("/", multiplexer.MiddlewareCliLogger(handlers.HandleMain))
 	mplex.HandleFunc("/upload", multiplexer.MiddlewareCliLogger(handlers.HandleFiles))
+	mplex.HandleFunc("/fonts", multiplexer.MiddlewareCliLogger(handlers.HandleFonts))
 
 	//
 	// server
