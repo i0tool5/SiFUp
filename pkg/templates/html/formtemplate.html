@@ -73,7 +73,39 @@
 			}
 		}
 
-		.container__drop > button {
+		.send-container {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			position: absolute;
+			width: 90px;
+			height: 90px;
+			bottom: 20px;
+			right: 20px;
+		}
+
+
+		.pulse {
+			width: 100%;
+			height: 100%;
+			border-radius: 50%;
+			opacity: 0.6;
+			background:rgba(171, 0, 235, 0.9);
+			animation-name: btn-pulse;
+			animation-duration: 1.5s;
+			animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+			animation-iteration-count: infinite;
+		}
+
+		@keyframes btn-pulse {
+			75%,
+			to {
+				transform: scale(1.2);
+				opacity: 0;
+			}
+		}
+
+		.send-container > button {
 			position: absolute;
 			width: 70px;
 			height: 70px;
@@ -81,16 +113,19 @@
 			font-weight: 600;
 			border: none;
 			border-radius: 50%;
-			bottom: 20px;
-			right: 20px;
 			cursor: pointer;
 			background: rgba(151, 0, 205, 0.7);
 			transition: all 0.3s ease;
 		}
 
-		.container__drop > button:hover {
+		.send-container > button:hover {
 			background: rgba(171, 0, 235, 0.9);
 			box-shadow: -2px -1px 7px 1px rgba(171, 0, 235, 0.7);
+		}
+
+		.send-container:hover > .pulse {
+			animation: none;
+			opacity: 0;
 		}
 
 		.drop-zone {
@@ -140,7 +175,10 @@
 					<p id="count"></p>
 				</div>
 			</div>
-			<button data-s3ndf0rm class="send">Send</button>
+			<div class="send-container">
+				<div class="pulse"></div>
+				<button data-s3ndf0rm class="send">Send</button>
+			</div>
 		</div>
 	</div>
 
