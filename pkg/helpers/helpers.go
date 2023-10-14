@@ -3,7 +3,6 @@ package helpers
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -45,7 +44,7 @@ func CreateFile(dir, fileName string, data []byte) (err error) {
 		return
 	}
 	fn := dir + fileName // fn stands for full name
-	err = ioutil.WriteFile(fn, data, 0644)
+	err = os.WriteFile(fn, data, 0644)
 	return
 }
 
