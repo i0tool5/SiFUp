@@ -114,7 +114,7 @@ func handleMultiPartReader(mpReader *multipart.Reader, buff *bytes.Buffer, saveD
 		for {
 			dat := buff.Bytes()
 			n, err := bufRead.Read(dat)
-			if err != nil {
+			if err != nil && n == 0 {
 				if errors.Is(err, io.EOF) {
 					bufWriter.Flush()
 					break
