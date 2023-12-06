@@ -15,7 +15,7 @@ import (
 	"github.com/i0tool5/simpleuploader/pkg/templates"
 )
 
-var chunkSize = 512
+var chunkSize = 4096
 
 type Handlers struct {
 	saveToDir string
@@ -66,6 +66,12 @@ func (h *Handlers) HandleMain(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, h.templates["form"])
 }
 
+// HandleFonts is responsible for handling font requests
+func (h *Handlers) HandleFonts(w http.ResponseWriter, r *http.Request) {
+	font := h.templates["genos"]
+	fmt.Fprint(w, font)
+}
+
 // HandleFiles is responsible for handling incoming files requests
 func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	multiPartReader, err := r.MultipartReader()
@@ -74,11 +80,11 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buff := bufPool.Get().(*bytes.Buffer)
-	defer bufPool.Put(buff)
-	defer buff.Reset()
+	dataBuffer := bufPool.Get().(*bytes.Buffer)
+	defer bufPool.Put(dataBuffer)
+	defer dataBuffer.Reset()
 
-	err = handleMultiPartReader(multiPartReader, buff, h.saveToDir)
+	err = h.handleMultiPartReader(multiPartReader, dataBuffer, h.saveToDir)
 	if err != nil {
 		helpers.WrapBoth(w, err)
 	}
@@ -86,13 +92,8 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, h.templates["success"])
 }
 
-// HandleFonts is responsible for handling font requests
-func (h *Handlers) HandleFonts(w http.ResponseWriter, r *http.Request) {
-	font := h.templates["genos"]
-	fmt.Fprint(w, font)
-}
-
-func handleMultiPartReader(mpReader *multipart.Reader, buff *bytes.Buffer, saveDir string) error {
+func (h *Handlers) handleMultiPartReader(mpReader *multipart.Reader, buff *bytes.Buffer, saveDir string) error {
+	var err error
 	for {
 		nextPart, err := mpReader.NextPart()
 		if err != nil {
@@ -102,32 +103,51 @@ func handleMultiPartReader(mpReader *multipart.Reader, buff *bytes.Buffer, saveD
 			return err
 		}
 
-		wfile, err := os.Create(saveDir + nextPart.FileName())
+		fileForWrite, err := os.Create(saveDir + nextPart.FileName())
 		if err != nil {
 			return err
 		}
-		defer wfile.Close()
+		defer fileForWrite.Close()
 
-		bufRead := bufio.NewReader(nextPart)
-		bufWriter := bufio.NewWriter(wfile)
-
-		for {
-			dat := buff.Bytes()
-			n, err := bufRead.Read(dat)
-			if err != nil && n == 0 {
-				if errors.Is(err, io.EOF) {
-					bufWriter.Flush()
-					break
-				}
-				return err
-			}
-
-			_, err = bufWriter.Write(dat[:n])
-			if err != nil {
-				return err
-			}
-			bufWriter.Flush()
+		multipartReadBuffer := bufio.NewReader(nextPart)
+		fileWriteBuffer := bufio.NewWriter(fileForWrite)
+		err = writeDataToFile(buff, multipartReadBuffer, fileWriteBuffer)
+		if err != nil {
+			continue
 		}
+	}
+
+	return err
+}
+
+type writeFlusher interface {
+	io.Writer
+	Flush() error
+}
+
+func writeDataToFile(
+	buffer *bytes.Buffer,
+	dataReader io.Reader,
+	dataWriter writeFlusher,
+) error {
+	for {
+		dat := buffer.Bytes()
+		n, err := dataReader.Read(dat)
+
+		if err != nil && n == 0 {
+			if errors.Is(err, io.EOF) {
+				dataWriter.Flush()
+
+				break
+			}
+			return err
+		}
+
+		_, err = dataWriter.Write(dat[:n])
+		if err != nil {
+			return err
+		}
+		dataWriter.Flush()
 	}
 
 	return nil
