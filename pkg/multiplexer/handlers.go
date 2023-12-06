@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -20,13 +21,16 @@ var chunkSize = 4096
 type Handlers struct {
 	saveToDir string
 	templates map[string]string
+
+	logger *slog.Logger
 }
 
-func NewHandlers(saveToDir string) (h *Handlers) {
+func NewHandlers(logger *slog.Logger, saveToDir string) (h *Handlers) {
 	h = new(Handlers)
 	h.saveToDir = saveToDir
 
 	h.templates = make(map[string]string)
+	h.logger = logger
 
 	return
 }
@@ -92,7 +96,11 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, h.templates["success"])
 }
 
-func (h *Handlers) handleMultiPartReader(mpReader *multipart.Reader, buff *bytes.Buffer, saveDir string) error {
+func (h *Handlers) handleMultiPartReader(
+	mpReader *multipart.Reader,
+	buff *bytes.Buffer,
+	saveDir string,
+) error {
 	var err error
 	for {
 		nextPart, err := mpReader.NextPart()
@@ -103,7 +111,9 @@ func (h *Handlers) handleMultiPartReader(mpReader *multipart.Reader, buff *bytes
 			return err
 		}
 
-		fileForWrite, err := os.Create(saveDir + nextPart.FileName())
+		fullpath := saveDir + nextPart.FileName()
+		h.logger.Debug("creating file", slog.Any("path", fullpath))
+		fileForWrite, err := os.Create(fullpath)
 		if err != nil {
 			return err
 		}
@@ -111,8 +121,9 @@ func (h *Handlers) handleMultiPartReader(mpReader *multipart.Reader, buff *bytes
 
 		multipartReadBuffer := bufio.NewReader(nextPart)
 		fileWriteBuffer := bufio.NewWriter(fileForWrite)
-		err = writeDataToFile(buff, multipartReadBuffer, fileWriteBuffer)
+		err = h.writeDataToFile(buff, multipartReadBuffer, fileWriteBuffer)
 		if err != nil {
+			h.logger.Error("error writing data to file", err)
 			continue
 		}
 	}
@@ -125,7 +136,7 @@ type writeFlusher interface {
 	Flush() error
 }
 
-func writeDataToFile(
+func (h *Handlers) writeDataToFile(
 	buffer *bytes.Buffer,
 	dataReader io.Reader,
 	dataWriter writeFlusher,
@@ -133,16 +144,16 @@ func writeDataToFile(
 	for {
 		dat := buffer.Bytes()
 		n, err := dataReader.Read(dat)
-
 		if err != nil && n == 0 {
 			if errors.Is(err, io.EOF) {
 				dataWriter.Flush()
-
+				h.logger.Debug("got EOF reading data")
 				break
 			}
 			return err
 		}
 
+		h.logger.Debug("writing data", slog.Any("data part", dat[:n]))
 		_, err = dataWriter.Write(dat[:n])
 		if err != nil {
 			return err

@@ -2,7 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/i0tool5/simpleuploader/pkg/helpers"
 	"github.com/i0tool5/simpleuploader/pkg/multiplexer"
@@ -18,32 +19,49 @@ var (
 	bindAddr string
 	saveDir  string
 	useTLS   bool
+	debug    bool
 )
 
 func init() {
 	flag.StringVar(&bindAddr, "bind", defaultAddr, "Set host:port to listen on.")
 	flag.StringVar(&saveDir, "save-to", defaultFileDir, "Set directory for uploaded files.")
 	flag.BoolVar(&useTLS, "tls", false, "Should server use tls or not (default 'not')")
+	flag.BoolVar(&debug, "debug", true, "Show debug level output. Might be verbose (default: true)")
 	flag.Parse()
 }
 
 func run() {
-	helpers.CreateUploadsDir(saveDir)
+	logger := slog.New(
+		slog.NewJSONHandler(
+			os.Stderr,
+			&slog.HandlerOptions{
+				Level: slog.LevelDebug,
+			},
+		),
+	)
+
+	err := helpers.CreateUploadsDir(saveDir, logger)
+	if err != nil {
+		logger.Error("can't create directory for files", err)
+		os.Exit(1)
+	}
 
 	//
 	// routing config
 	//
 
 	mplex := multiplexer.New()
-	handlers := multiplexer.NewHandlers(saveDir)
+	handlers := multiplexer.NewHandlers(logger, saveDir)
+	middlewares := multiplexer.NewMiddleware(logger)
 
 	if err := handlers.PrepareTemplates(); err != nil {
-		log.Fatal(err)
+		logger.Error("can't prepare templates", err)
+		os.Exit(1)
 	}
 
-	mplex.HandleFunc("/", multiplexer.MiddlewareCliLogger(handlers.HandleMain))
-	mplex.HandleFunc("/upload", multiplexer.MiddlewareCliLogger(handlers.HandleFiles))
-	mplex.HandleFunc("/fonts", multiplexer.MiddlewareCliLogger(handlers.HandleFonts))
+	mplex.HandleFunc("/", middlewares.CliLogger(handlers.HandleMain))
+	mplex.HandleFunc("/upload", middlewares.CliLogger(handlers.HandleFiles))
+	mplex.HandleFunc("/fonts", middlewares.CliLogger(handlers.HandleFonts))
 
 	//
 	// server
@@ -52,13 +70,25 @@ func run() {
 	srv := server.New(bindAddr, mplex)
 
 	if useTLS {
-		log.Printf("Starting TLS server on %s\n", bindAddr)
+		logger.Info(
+			"starting TLS server",
+			slog.Any("address", bindAddr),
+		)
 		srv.ListenAndServeTLS()
-		log.Println("TLS server done")
+		logger.Info(
+			"stoping TLS server",
+			slog.Any("address", bindAddr),
+		)
 	} else {
-		log.Printf("Starting server on %s\n", bindAddr)
+		logger.Info(
+			"starting server",
+			slog.Any("address", bindAddr),
+		)
 		srv.ListenAndServe()
-		log.Println("Server done")
+		logger.Info(
+			"stoping server",
+			slog.Any("address", bindAddr),
+		)
 	}
 }
 

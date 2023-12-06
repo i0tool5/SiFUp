@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -30,17 +31,23 @@ func WrapBoth(rw http.ResponseWriter, err error) {
 	WrapHttp(rw)
 }
 
-func CreateUploadsDir(dirname string) (err error) {
+func CreateUploadsDir(dirname string, logger *slog.Logger) (err error) {
 	if _, err = os.Stat(dirname); os.IsNotExist(err) {
-		log.Println("[!] Creating uploads directory")
+		logger.Warn(
+			"creating uploads directory",
+			slog.Attr{
+				Key:   "dirname",
+				Value: slog.AnyValue(dirname),
+			},
+		)
 		err = os.Mkdir(dirname, 0744)
 		return err
 	}
 	return
 }
 
-func CreateFile(dir, fileName string, data []byte) (err error) {
-	if err = CreateUploadsDir(dir); err != nil {
+func CreateFile(dir, fileName string, data []byte, logger *slog.Logger) (err error) {
+	if err = CreateUploadsDir(dir, logger); err != nil {
 		return
 	}
 	fn := dir + fileName // fn stands for full name
