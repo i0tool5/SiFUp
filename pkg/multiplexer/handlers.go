@@ -35,7 +35,7 @@ func NewHandlers(logger *slog.Logger, saveToDir string) (h *Handlers) {
 	return
 }
 
-var bufPool = sync.Pool{
+var bufferPool = sync.Pool{
 	New: func() any {
 		// The Pool's New function should generally only return pointer
 		// types, since a pointer can be put into the return interface
@@ -84,8 +84,8 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dataBuffer := bufPool.Get().(*bytes.Buffer)
-	defer bufPool.Put(dataBuffer)
+	dataBuffer := bufferPool.Get().(*bytes.Buffer)
+	defer bufferPool.Put(dataBuffer)
 	defer dataBuffer.Reset()
 
 	err = h.handleMultiPartReader(multiPartReader, dataBuffer, h.saveToDir)
@@ -97,13 +97,13 @@ func (h *Handlers) HandleFiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) handleMultiPartReader(
-	mpReader *multipart.Reader,
-	buff *bytes.Buffer,
+	multiPartReader *multipart.Reader,
+	bytesBuffer *bytes.Buffer,
 	saveDir string,
 ) error {
 	var err error
 	for {
-		nextPart, err := mpReader.NextPart()
+		nextPart, err := multiPartReader.NextPart()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
@@ -121,7 +121,8 @@ func (h *Handlers) handleMultiPartReader(
 
 		multipartReadBuffer := bufio.NewReader(nextPart)
 		fileWriteBuffer := bufio.NewWriter(fileForWrite)
-		err = h.writeDataToFile(buff, multipartReadBuffer, fileWriteBuffer)
+
+		err = h.writeDataToFile(bytesBuffer, multipartReadBuffer, fileWriteBuffer)
 		if err != nil {
 			h.logger.Error("error writing data to file", err)
 			continue
@@ -131,6 +132,7 @@ func (h *Handlers) handleMultiPartReader(
 	return err
 }
 
+// writeFlusher is an interface derived from io.Writer with one additional Flush method.
 type writeFlusher interface {
 	io.Writer
 	Flush() error
