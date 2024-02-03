@@ -1,3 +1,3 @@
 module github.com/i0tool5/simpleuploader
 
-go 1.20
+go 1.21
