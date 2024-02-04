@@ -5,9 +5,11 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/i0tool5/simpleuploader/pkg/handlers"
 	"github.com/i0tool5/simpleuploader/pkg/helpers"
 	"github.com/i0tool5/simpleuploader/pkg/multiplexer"
 	"github.com/i0tool5/simpleuploader/pkg/server"
+	"github.com/i0tool5/simpleuploader/pkg/templates"
 )
 
 const (
@@ -25,8 +27,8 @@ var (
 func init() {
 	flag.StringVar(&bindAddr, "bind", defaultAddr, "Set host:port to listen on.")
 	flag.StringVar(&saveDir, "save-to", defaultFileDir, "Set directory for uploaded files.")
-	flag.BoolVar(&useTLS, "tls", false, "Should server use tls or not (default 'not')")
-	flag.BoolVar(&debug, "debug", true, "Show debug level output. Might be verbose (default: true)")
+	flag.BoolVar(&useTLS, "tls", false, "Should server use tls or not")
+	flag.BoolVar(&debug, "debug", true, "Show debug level output. Might be verbose")
 	flag.Parse()
 }
 
@@ -50,18 +52,19 @@ func run() {
 	// routing config
 	//
 
-	mplex := multiplexer.New()
-	handlers := multiplexer.NewHandlers(logger, saveDir)
-	middlewares := multiplexer.NewMiddleware(logger)
-
-	if err := handlers.PrepareTemplates(); err != nil {
-		logger.Error("can't prepare templates", err)
+	htmlTemplates, err := templates.New()
+	if err != nil {
+		logger.Error("can't create templates", err)
 		os.Exit(1)
 	}
 
-	mplex.HandleFunc("/", middlewares.CliLogger(handlers.HandleMain))
-	mplex.HandleFunc("/upload", middlewares.CliLogger(handlers.HandleFiles))
-	mplex.HandleFunc("/fonts", middlewares.CliLogger(handlers.HandleFonts))
+	mplex := multiplexer.New()
+	handles := handlers.New(saveDir, logger, htmlTemplates)
+	middlewares := multiplexer.NewMiddleware(logger)
+
+	mplex.HandleFunc("/", middlewares.CliLogger(handles.Static.HandleMain))
+	mplex.HandleFunc("/fonts", middlewares.CliLogger(handles.Static.HandleFonts))
+	mplex.HandleFunc("/upload", middlewares.CliLogger(handles.File.Handle))
 
 	//
 	// server
